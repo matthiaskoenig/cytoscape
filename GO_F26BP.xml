@@ -1,0 +1,1369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sbml xmlns="http://www.sbml.org/sbml/level3/version1/core" level="3" version="1">
+  <model>
+    <notes>
+      <body xmlns="http://www.w3.org/1999/xhtml">
+        <h1>XPP model</h1>
+        <p>This model was converted from XPP ode format to SBML using <code>sbmlutils-0.1.8</code>.</p>
+        <pre># GO_F26BP.ode
+#
+# This XPPAUT file contains the code for the glycolytic oscillator used to make
+# Fig. 4 in M.J. Merrins, R. Bertram, A. Sherman, L.S. Satin,
+# &quot;Phosphofructo-2-kinase/Fructose-2,6-bisphosphatase Modulates Oscillations
+# of Pancreatic Islet Metabolism&quot;, PLoS One, 7(4):e34036,
+# doi:10.1371/journal.pone.0034036, 2012. It has a parameter for the amount (in uM)
+# of F26BP that is present.
+
+# Variables:
+# f6p -- glucose 6-phosphate
+# fbp -- fructose 1,6-bisphosphate
+
+# Actions:
+&quot; {f26bp=0} no F26BP
+&quot; {f26bp=0.1} some F26BP
+&quot; {f26bp=0.2} more F26BP
+
+f6p(0)=200
+fbp(0)=0
+int_f6p(0)=0
+int_fbp(0)=0
+
+# Parameters
+#  Jgk--glucokinase rate
+#  atot--total adenine nucleotide concentration (micromolar)
+#  k1--Kd for AMP binding
+#  k2--Kd for FBP binding
+#  k3--Kd for F6P binding
+#  k4--Kd for ATP binding
+#  f13,etc--Kd amplification factors for heterotropic binding
+#  Jgpdh--glyceraldehyde phosphate dehydrogenase rate
+#  speed--modifies period of glycolytic oscillations.
+#  BIFrat--the ratio of VPFK2 to VFBPase2.
+
+par atot=2500
+par f26bp=0
+par clampf6p=0
+par clampfbp=0
+par f6p0=0
+par fbp0=0
+par atp=800
+par speed=2
+par Jgk=0.2
+par k4=330
+par k1=30, k3=50000
+par kfbp=1.0,kf26bp=0.15
+par f13=0.02, f43=20, f23=0.2, f42=20, f41=20, pfkbas=0.06
+par VmaxPFK=5
+par phigk=0.3
+par KGPDH=0.2
+
+# glucose 6-phosphate
+g6p = f6p/phigk
+Jgpdh = KGPDH*sqrt(fbp)
+
+# nucleotide concentrations, based on eqs. 14 and 15 from Smolen, ref. 1265.
+rad = sqrt(1-4*(1/atp)*(atp-atot))
+adp=0.5*(rad-1)*atp
+amp = adp^2/atp
+ratio = atp/adp
+
+# Iterative calculation of PFK
+# alpha=1 -- AMP bound
+# beta=1 -- FBP bound
+# gamma=1 -- F6P bound
+# delta=1 -- ATP bound
+
+# (alpha,beta,gamma,delta)
+# (0,0,0,0)
+weight1=1
+topa1=0
+bottom1=1
+
+# (0,0,0,1)
+weight2=atp^2/k4
+topa2=topa1
+bottom2=bottom1+weight2
+
+# (0,0,1,0)
+weight3=f6p^2/k3
+topa3=topa2+weight3
+bottom3=bottom2+weight3
+
+# (0,0,1,1)
+weight4=(f6p*atp)^2/(f43*k3*k4)
+topa4=topa3+weight4
+bottom4=bottom3+weight4
+
+# (0,1,0,0)
+# weight5=fbp/k2
+weight5=(fbp/kfbp)+(f26bp/kf26bp)
+topa5=topa4
+bottom5=bottom4+weight5
+
+# (0,1,0,1)
+# weight6=(fbp*atp^2)/(k2*k4*f42)
+weight6=((fbp/kfbp)+(f26bp/kf26bp))*(atp^2)/(k4*f42)
+topa6=topa5
+bottom6=bottom5+weight6
+
+# (0,1,1,0)
+# weight7=(fbp*f6p^2)/(k2*k3*f23)
+weight7=((fbp/kfbp)+(f26bp/kf26bp))*(f6p^2)/(k3*f23)
+topa7=topa6+weight7
+bottom7=bottom6+weight7
+
+# (0,1,1,1)
+# weight8=(fbp*f6p^2*atp^2)/(k2*k3*k4*f23*f42*f43)
+weight8=((fbp/kfbp)+(f26bp/kf26bp))*(f6p^2*atp^2)/(k3*k4*f23*f42*f43)
+topa8=topa7+weight8
+bottom8=bottom7+weight8
+
+# (1,0,0,0)
+weight9=amp/k1
+topa9=topa8
+bottom9=bottom8+weight9
+
+# (1,0,0,1)
+weight10=(amp*atp^2)/(k1*k4*f41)
+topa10=topa9
+bottom10=bottom9+weight10
+
+# (1,0,1,0)
+weight11=(amp*f6p^2)/(k1*k3*f13)
+topa11=topa10+weight11
+bottom11=bottom10+weight11
+
+# (1,0,1,1)
+weight12=(amp*f6p^2*atp^2)/(k1*k3*k4*f13*f41*f43)
+topa12=topa11+weight12
+bottom12=bottom11+weight12
+
+# (1,1,0,0)
+# weight13=(amp*fbp)/(k1*k2)
+weight13=(amp/k1)*((fbp/kfbp)+(f26bp/kf26bp))
+topa13=topa12
+bottom13=bottom12+weight13
+
+# (1,1,0,1)
+# weight14=(amp*fbp*atp^2)/(k1*k2*k4*f42*f41)
+weight14=((fbp/kfbp)+(f26bp/kf26bp))*(amp*atp^2)/(k1*k4*f42*f41)
+topa14=topa13
+bottom14=bottom13+weight14
+
+# (1,1,1,0) -- the most active state of the enzyme
+# weight15=(amp*fbp*f6p^2)/(k1*k2*k3*f23*f13)
+weight15=((fbp/kfbp)+(f26bp/kf26bp))*(amp*f6p^2)/(k1*k3*f23*f13)
+topa15=topa14
+topb=weight15
+bottom15=bottom14+weight15
+
+# (1,1,1,1)
+# weight16=(amp*fbp*f6p^2*atp^2)/(k1*k2*k3*k4*f23*f13*f42*f41*f43)
+weight16=((fbp/kfbp)+(f26bp/kf26bp))*(amp*f6p^2*atp^2)/(k1*k3*k4*f23*f13*f42*f41*f43)
+topa16=topa15+weight16
+bottom16=bottom15+weight16
+
+# Phosphofructokinase rate
+% rate=(pfkbas*VmaxPFK*topa16 + VmaxPFK*topb)/bottom16  
+% pfk=rate*(atp/(atp+2))    atp saturates
+Jpfk=((pfkbas*VmaxPFK*topa16 + VmaxPFK*topb)/bottom16)*(atp/(atp+2))
+
+# ODEs
+f6p&apos; = clampf6p*(f6p0-f6p)+(1-clampf6p)*speed*phigk*(Jgk - Jpfk)
+fbp&apos; = clampfbp*(fbp0-fbp)+(1-clampfbp)*speed*(Jpfk - 0.5*Jgpdh)
+
+# Mean substrate and product
+int_f6p&apos; = f6p
+int_fbp&apos; = fbp
+aux mean_f6p=int_f6p/(t+0.0001)
+aux mean_fbp=int_fbp/(t+0.0001)
+
+aux tmin=t/60
+aux ttrans=(t-6000)/60
+aux JGPDH=Jgpdh
+aux atp=atp
+aux Jpfk=Jpfk
+
+@ meth=cvode, toler=1.0e-10, atoler=1.0e-10, dt=0.5, total=9000, maxstor=70000
+@ bounds=10000000, xp=tmin, yp=fbp, bell=0, nmesh=100
+@ xlo=0, xhi=150, ylo=0, yhi=50
+done
+</pre>
+        <div class="dc:publisher">This file has been produced by
+      <a href="https://github.com/matthiaskoenig/sbmlutils/" title="sbmlutils" target="_blank">sbmlutils</a>.
+    </div>
+        <h2>Terms of use</h2>
+        <div class="dc:rightsHolder">Copyright © 2017 Matthias Koenig</div>
+        <div class="dc:license">
+          <p>Redistribution and use of any part of this model, with or without modification, are permitted provided that
+      the following conditions are met:
+        <ol>
+            <li>Redistributions of this SBML file must retain the above copyright notice, this list of conditions
+              and the following disclaimer.</li>
+            <li>Redistributions in a different form must reproduce the above copyright notice, this list of
+              conditions and the following disclaimer in the documentation and/or other materials provided
+          with the distribution.</li>
+          </ol>
+        This model is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+             the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</p>
+        </div>
+      </body>
+    </notes>
+    <listOfFunctionDefinitions>
+      <functionDefinition id="max" name="minimum">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <lambda>
+            <bvar>
+              <ci> x </ci>
+            </bvar>
+            <bvar>
+              <ci> y </ci>
+            </bvar>
+            <piecewise>
+              <piece>
+                <ci> x </ci>
+                <apply>
+                  <gt/>
+                  <ci> x </ci>
+                  <ci> y </ci>
+                </apply>
+              </piece>
+              <otherwise>
+                <ci> y </ci>
+              </otherwise>
+            </piecewise>
+          </lambda>
+        </math>
+      </functionDefinition>
+      <functionDefinition id="min" name="maximum">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <lambda>
+            <bvar>
+              <ci> x </ci>
+            </bvar>
+            <bvar>
+              <ci> y </ci>
+            </bvar>
+            <piecewise>
+              <piece>
+                <ci> x </ci>
+                <apply>
+                  <lt/>
+                  <ci> x </ci>
+                  <ci> y </ci>
+                </apply>
+              </piece>
+              <otherwise>
+                <ci> y </ci>
+              </otherwise>
+            </piecewise>
+          </lambda>
+        </math>
+      </functionDefinition>
+      <functionDefinition id="heav" name="heavyside">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <lambda>
+            <bvar>
+              <ci> x </ci>
+            </bvar>
+            <piecewise>
+              <piece>
+                <cn type="integer"> 0 </cn>
+                <apply>
+                  <lt/>
+                  <ci> x </ci>
+                  <cn type="integer"> 0 </cn>
+                </apply>
+              </piece>
+              <piece>
+                <cn> 0.5 </cn>
+                <apply>
+                  <eq/>
+                  <ci> x </ci>
+                  <cn type="integer"> 0 </cn>
+                </apply>
+              </piece>
+              <piece>
+                <cn type="integer"> 1 </cn>
+                <apply>
+                  <gt/>
+                  <ci> x </ci>
+                  <cn type="integer"> 0 </cn>
+                </apply>
+              </piece>
+              <otherwise>
+                <cn type="integer"> 0 </cn>
+              </otherwise>
+            </piecewise>
+          </lambda>
+        </math>
+      </functionDefinition>
+      <functionDefinition id="mod" name="modulo">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <lambda>
+            <bvar>
+              <ci> x </ci>
+            </bvar>
+            <bvar>
+              <ci> y </ci>
+            </bvar>
+            <piecewise>
+              <piece>
+                <apply>
+                  <minus/>
+                  <ci> x </ci>
+                  <apply>
+                    <times/>
+                    <ci> y </ci>
+                    <apply>
+                      <ceiling/>
+                      <apply>
+                        <divide/>
+                        <ci> x </ci>
+                        <ci> y </ci>
+                      </apply>
+                    </apply>
+                  </apply>
+                </apply>
+                <apply>
+                  <xor/>
+                  <apply>
+                    <lt/>
+                    <ci> x </ci>
+                    <cn type="integer"> 0 </cn>
+                  </apply>
+                  <apply>
+                    <lt/>
+                    <ci> y </ci>
+                    <cn type="integer"> 0 </cn>
+                  </apply>
+                </apply>
+              </piece>
+              <otherwise>
+                <apply>
+                  <minus/>
+                  <ci> x </ci>
+                  <apply>
+                    <times/>
+                    <ci> y </ci>
+                    <apply>
+                      <floor/>
+                      <apply>
+                        <divide/>
+                        <ci> x </ci>
+                        <ci> y </ci>
+                      </apply>
+                    </apply>
+                  </apply>
+                </apply>
+              </otherwise>
+            </piecewise>
+          </lambda>
+        </math>
+      </functionDefinition>
+    </listOfFunctionDefinitions>
+    <listOfParameters>
+      <parameter id="f6p" name="f6p = 200" value="200" constant="false"/>
+      <parameter id="fbp" name="fbp = 0" value="0" constant="false"/>
+      <parameter id="int_f6p" name="int_f6p = 0" value="0" constant="false"/>
+      <parameter id="int_fbp" name="int_fbp = 0" value="0" constant="false"/>
+      <parameter id="atot" name="atot = 2500" value="2500" constant="false"/>
+      <parameter id="f26bp" name="f26bp = 0" value="0" constant="false"/>
+      <parameter id="clampf6p" name="clampf6p = 0" value="0" constant="false"/>
+      <parameter id="clampfbp" name="clampfbp = 0" value="0" constant="false"/>
+      <parameter id="f6p0" name="f6p0 = 0" value="0" constant="false"/>
+      <parameter id="fbp0" name="fbp0 = 0" value="0" constant="false"/>
+      <parameter id="atp" name="atp = 800" value="800" constant="false"/>
+      <parameter id="speed" name="speed = 2" value="2" constant="false"/>
+      <parameter id="Jgk" name="Jgk = 0.2" value="0.2" constant="false"/>
+      <parameter id="k4" name="k4 = 330" value="330" constant="false"/>
+      <parameter id="k1" name="k1 = 30" value="30" constant="false"/>
+      <parameter id="k3" name="k3 = 50000" value="50000" constant="false"/>
+      <parameter id="kfbp" name="kfbp = 1.0" value="1" constant="false"/>
+      <parameter id="kf26bp" name="kf26bp = 0.15" value="0.15" constant="false"/>
+      <parameter id="f13" name="f13 = 0.02" value="0.02" constant="false"/>
+      <parameter id="f43" name="f43 = 20" value="20" constant="false"/>
+      <parameter id="f23" name="f23 = 0.2" value="0.2" constant="false"/>
+      <parameter id="f42" name="f42 = 20" value="20" constant="false"/>
+      <parameter id="f41" name="f41 = 20" value="20" constant="false"/>
+      <parameter id="pfkbas" name="pfkbas = 0.06" value="0.06" constant="false"/>
+      <parameter id="VmaxPFK" name="VmaxPFK = 5" value="5" constant="false"/>
+      <parameter id="phigk" name="phigk = 0.3" value="0.3" constant="false"/>
+      <parameter id="KGPDH" name="KGPDH = 0.2" value="0.2" constant="false"/>
+      <parameter id="g6p" value="0" units="dimensionless" constant="false"/>
+      <parameter id="Jgpdh" value="0" units="dimensionless" constant="false"/>
+      <parameter id="rad" value="0" units="dimensionless" constant="false"/>
+      <parameter id="adp" value="0" units="dimensionless" constant="false"/>
+      <parameter id="amp" value="0" units="dimensionless" constant="false"/>
+      <parameter id="ratio" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight1" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa1" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom1" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight2" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa2" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom2" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight3" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa3" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom3" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight4" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa4" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom4" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight5" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa5" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom5" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight6" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa6" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom6" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight7" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa7" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom7" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight8" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa8" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom8" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight9" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa9" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom9" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight10" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa10" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom10" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight11" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa11" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom11" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight12" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa12" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom12" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight13" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa13" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom13" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight14" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa14" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom14" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight15" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa15" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topb" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom15" value="0" units="dimensionless" constant="false"/>
+      <parameter id="weight16" value="0" units="dimensionless" constant="false"/>
+      <parameter id="topa16" value="0" units="dimensionless" constant="false"/>
+      <parameter id="bottom16" value="0" units="dimensionless" constant="false"/>
+      <parameter id="Jpfk" value="0" units="dimensionless" constant="false"/>
+      <parameter id="mean_f6p" value="0" units="dimensionless" constant="false"/>
+      <parameter id="mean_fbp" value="0" units="dimensionless" constant="false"/>
+      <parameter id="tmin" value="0" units="dimensionless" constant="false"/>
+      <parameter id="ttrans" value="0" units="dimensionless" constant="false"/>
+      <parameter id="JGPDH" value="0" units="dimensionless" constant="false"/>
+      <parameter id="t" name="model time" value="0" units="dimensionless" constant="false"/>
+    </listOfParameters>
+    <listOfRules>
+      <rateRule variable="f6p">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <apply>
+              <times/>
+              <ci> clampf6p </ci>
+              <apply>
+                <minus/>
+                <ci> f6p0 </ci>
+                <ci> f6p </ci>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <apply>
+                <minus/>
+                <cn type="integer"> 1 </cn>
+                <ci> clampf6p </ci>
+              </apply>
+              <ci> speed </ci>
+              <ci> phigk </ci>
+              <apply>
+                <minus/>
+                <ci> Jgk </ci>
+                <ci> Jpfk </ci>
+              </apply>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+      <rateRule variable="fbp">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <apply>
+              <times/>
+              <ci> clampfbp </ci>
+              <apply>
+                <minus/>
+                <ci> fbp0 </ci>
+                <ci> fbp </ci>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <apply>
+                <minus/>
+                <cn type="integer"> 1 </cn>
+                <ci> clampfbp </ci>
+              </apply>
+              <ci> speed </ci>
+              <apply>
+                <minus/>
+                <ci> Jpfk </ci>
+                <apply>
+                  <times/>
+                  <cn> 0.5 </cn>
+                  <ci> Jgpdh </ci>
+                </apply>
+              </apply>
+            </apply>
+          </apply>
+        </math>
+      </rateRule>
+      <rateRule variable="int_f6p">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> f6p </ci>
+        </math>
+      </rateRule>
+      <rateRule variable="int_fbp">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> fbp </ci>
+        </math>
+      </rateRule>
+      <assignmentRule variable="g6p">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> f6p </ci>
+            <ci> phigk </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="Jgpdh">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <ci> KGPDH </ci>
+            <apply>
+              <root/>
+              <degree>
+                <cn type="integer"> 2 </cn>
+              </degree>
+              <ci> fbp </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="rad">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <root/>
+            <degree>
+              <cn type="integer"> 2 </cn>
+            </degree>
+            <apply>
+              <minus/>
+              <cn type="integer"> 1 </cn>
+              <apply>
+                <times/>
+                <cn type="integer"> 4 </cn>
+                <apply>
+                  <divide/>
+                  <cn type="integer"> 1 </cn>
+                  <ci> atp </ci>
+                </apply>
+                <apply>
+                  <minus/>
+                  <ci> atp </ci>
+                  <ci> atot </ci>
+                </apply>
+              </apply>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="adp">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <cn> 0.5 </cn>
+            <apply>
+              <minus/>
+              <ci> rad </ci>
+              <cn type="integer"> 1 </cn>
+            </apply>
+            <ci> atp </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="amp">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <power/>
+              <ci> adp </ci>
+              <cn type="integer"> 2 </cn>
+            </apply>
+            <ci> atp </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="ratio">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> atp </ci>
+            <ci> adp </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight1">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <cn type="integer"> 1 </cn>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa1">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <cn type="integer"> 0 </cn>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom1">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <cn type="integer"> 1 </cn>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight2">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <power/>
+              <ci> atp </ci>
+              <cn type="integer"> 2 </cn>
+            </apply>
+            <ci> k4 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa2">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa1 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom2">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom1 </ci>
+            <ci> weight2 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight3">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <power/>
+              <ci> f6p </ci>
+              <cn type="integer"> 2 </cn>
+            </apply>
+            <ci> k3 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa3">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa2 </ci>
+            <ci> weight3 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom3">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom2 </ci>
+            <ci> weight3 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight4">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <power/>
+              <apply>
+                <times/>
+                <ci> f6p </ci>
+                <ci> atp </ci>
+              </apply>
+              <cn type="integer"> 2 </cn>
+            </apply>
+            <apply>
+              <times/>
+              <ci> f43 </ci>
+              <ci> k3 </ci>
+              <ci> k4 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa4">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa3 </ci>
+            <ci> weight4 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom4">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom3 </ci>
+            <ci> weight4 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight5">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <apply>
+              <divide/>
+              <ci> fbp </ci>
+              <ci> kfbp </ci>
+            </apply>
+            <apply>
+              <divide/>
+              <ci> f26bp </ci>
+              <ci> kf26bp </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa5">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa4 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom5">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom4 </ci>
+            <ci> weight5 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight6">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k4 </ci>
+              <ci> f42 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa6">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa5 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom6">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom5 </ci>
+            <ci> weight6 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight7">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k3 </ci>
+              <ci> f23 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa7">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa6 </ci>
+            <ci> weight7 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom7">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom6 </ci>
+            <ci> weight7 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight8">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k3 </ci>
+              <ci> k4 </ci>
+              <ci> f23 </ci>
+              <ci> f42 </ci>
+              <ci> f43 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa8">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa7 </ci>
+            <ci> weight8 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom8">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom7 </ci>
+            <ci> weight8 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight9">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> amp </ci>
+            <ci> k1 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa9">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa8 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom9">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom8 </ci>
+            <ci> weight9 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight10">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k4 </ci>
+              <ci> f41 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa10">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa9 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom10">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom9 </ci>
+            <ci> weight10 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight11">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k3 </ci>
+              <ci> f13 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa11">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa10 </ci>
+            <ci> weight11 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom11">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom10 </ci>
+            <ci> weight11 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight12">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k3 </ci>
+              <ci> k4 </ci>
+              <ci> f13 </ci>
+              <ci> f41 </ci>
+              <ci> f43 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa12">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa11 </ci>
+            <ci> weight12 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom12">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom11 </ci>
+            <ci> weight12 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight13">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <apply>
+              <divide/>
+              <ci> amp </ci>
+              <ci> k1 </ci>
+            </apply>
+            <apply>
+              <plus/>
+              <apply>
+                <divide/>
+                <ci> fbp </ci>
+                <ci> kfbp </ci>
+              </apply>
+              <apply>
+                <divide/>
+                <ci> f26bp </ci>
+                <ci> kf26bp </ci>
+              </apply>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa13">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa12 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom13">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom12 </ci>
+            <ci> weight13 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight14">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k4 </ci>
+              <ci> f42 </ci>
+              <ci> f41 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa14">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa13 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom14">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom13 </ci>
+            <ci> weight14 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight15">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k3 </ci>
+              <ci> f23 </ci>
+              <ci> f13 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa15">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> topa14 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topb">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> weight15 </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom15">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom14 </ci>
+            <ci> weight15 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="weight16">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <times/>
+              <apply>
+                <plus/>
+                <apply>
+                  <divide/>
+                  <ci> fbp </ci>
+                  <ci> kfbp </ci>
+                </apply>
+                <apply>
+                  <divide/>
+                  <ci> f26bp </ci>
+                  <ci> kf26bp </ci>
+                </apply>
+              </apply>
+              <ci> amp </ci>
+              <apply>
+                <power/>
+                <ci> f6p </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+              <apply>
+                <power/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+            <apply>
+              <times/>
+              <ci> k1 </ci>
+              <ci> k3 </ci>
+              <ci> k4 </ci>
+              <ci> f23 </ci>
+              <ci> f13 </ci>
+              <ci> f42 </ci>
+              <ci> f41 </ci>
+              <ci> f43 </ci>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="topa16">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> topa15 </ci>
+            <ci> weight16 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="bottom16">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <plus/>
+            <ci> bottom15 </ci>
+            <ci> weight16 </ci>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="Jpfk">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <times/>
+            <apply>
+              <divide/>
+              <apply>
+                <plus/>
+                <apply>
+                  <times/>
+                  <ci> pfkbas </ci>
+                  <ci> VmaxPFK </ci>
+                  <ci> topa16 </ci>
+                </apply>
+                <apply>
+                  <times/>
+                  <ci> VmaxPFK </ci>
+                  <ci> topb </ci>
+                </apply>
+              </apply>
+              <ci> bottom16 </ci>
+            </apply>
+            <apply>
+              <divide/>
+              <ci> atp </ci>
+              <apply>
+                <plus/>
+                <ci> atp </ci>
+                <cn type="integer"> 2 </cn>
+              </apply>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="mean_f6p">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> int_f6p </ci>
+            <apply>
+              <plus/>
+              <ci> t </ci>
+              <cn> 0.0001 </cn>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="mean_fbp">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> int_fbp </ci>
+            <apply>
+              <plus/>
+              <ci> t </ci>
+              <cn> 0.0001 </cn>
+            </apply>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="tmin">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <ci> t </ci>
+            <cn type="integer"> 60 </cn>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="ttrans">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <apply>
+            <divide/>
+            <apply>
+              <minus/>
+              <ci> t </ci>
+              <cn type="integer"> 6000 </cn>
+            </apply>
+            <cn type="integer"> 60 </cn>
+          </apply>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="JGPDH">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <ci> Jgpdh </ci>
+        </math>
+      </assignmentRule>
+      <assignmentRule variable="t">
+        <math xmlns="http://www.w3.org/1998/Math/MathML">
+          <csymbol encoding="text" definitionURL="http://www.sbml.org/sbml/symbols/time"> time </csymbol>
+        </math>
+      </assignmentRule>
+    </listOfRules>
+  </model>
+</sbml>
